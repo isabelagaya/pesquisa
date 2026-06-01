@@ -4,7 +4,7 @@ import pandas as pd
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Carga Completa)
+# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Estrutura Consolidada)
 # ==============================================================================
 DB_NAME = "pesquisa_rural.db"
 
@@ -50,7 +50,7 @@ def inicializar_banco():
             p27_perfil_fazenda TEXT,
             p28_proxima_tecnologia TEXT,
             p29_sugestao_politica TEXT,
-            -- Outputs do Modelo
+            -- Outputs do Modelo Preditivo
             ipt_score REAL,
             cluster_classificacao TEXT
         )
@@ -81,13 +81,12 @@ def salvar_resposta(dados):
 inicializar_banco()
 
 # ==============================================================================
-# 2. INTERFACE E DESIGN (Streamlit)
+# 2. INTERFACE E DESIGN DA TELA (Streamlit)
 # ==============================================================================
 st.set_page_config(page_title="SDR 4.0 - Diagnóstico Rural", page_icon="🚜", layout="centered")
 
 st.title("🚜 Painel de Tecnologias Digitais Agrícola")
 
-# Texto institucional do cabeçalho
 st.markdown("""
 **Prezado(a) Produtor(a) Rural,**
 
@@ -112,7 +111,7 @@ with aba_form:
         
         p1_idade = st.selectbox("1 - Qual sua idade?", ["Até 25 anos", "26 a 35 anos", "36 a 45 anos", "46 a 55 anos", "56 a 65 anos", "Acima de 65 anos"])
         p2_sexo = st.radio("2 - Qual seu sexo?", ["Masculino", "Feminino", "Prefiro não responder"])
-        p3_tamanho_familia = st.selectbox("3 - Qual o tamanho da sua família (pessoas que residem ou dependem da propriedade)?", ["1 a 2 pessoas", "3 a 4 pessoas", "5 a 6 pessoas", "Mais de 6 pessoas"])
+        p3_tamanho_familia = st.selectbox("3 - Qual o tamanho da sua família?", ["1 a 2 pessoas", "3 a 4 pessoas", "5 a 6 pessoas", "Mais de 6 pessoas"])
         
         p4_escolaridade = st.selectbox(
             "4 - Qual seu grau de escolaridade?",
@@ -122,14 +121,14 @@ with aba_form:
         p5_proxima_geracao = st.radio("5 - Há membros da próxima geração (filhos/netos) envolvidos na gestão tecnológica da fazenda?", ["Sim", "Não", "Não se aplica / Não tenho herdeiros"])
         p6_localizacao = st.text_input("6 - Localização da fazenda (Município / UF):", placeholder="Ex: Rio Verde / GO")
         
-        # Culturas
         p7_cultura_principal = st.text_input("7 - Qual a principal cultura da sua fazenda?", placeholder="Ex: Soja, Café, Uva de Vinho, etc.")
-        p8_demais_culturas = st.text_input("8 - Demais culturas da sua fazenda (se houver, separe por vírgula):", placeholder="Ex: Milho, Sorgo, Caprino")
+        p8_demais_culturas = st.text_input("8 - Demais culturas da sua fazenda (se houver):", placeholder="Ex: Milho, Sorgo, Caprino")
 
         st.divider()
-        st.markdown("### 🧮 Variáveis de Impacto no IPT")
+        st.markdown("### 🧮 Variáveis de Impacto Direto no IPT")
+        st.caption("As perguntas 9, 11 e 20 são as variáveis base que compõem o cálculo do Índice de Prontidão Tecnológica.")
         
-        # 9. Área de Cultivo (Variável Core IPT - Peso 1.4)
+        # 9. Área de Cultivo (Mapeada de 1 a 5 - Peso: 1.4)
         dict_area = {
             "Micro (até 50 ha)": 1,
             "Pequeno (51 a 200 ha)": 2,
@@ -137,19 +136,19 @@ with aba_form:
             "Grande (1.001 a 5.000 ha)": 4,
             "Muito grande (acima de 5.000 ha)": 5
         }
-        p9_area_cultivo = st.selectbox("9 - Qual área de cultivo da sua fazenda?", list(dict_area.keys()))
+        p9_area_cultivo = st.selectbox("9 - Qual área de cultivo da sua fazenda? *", list(dict_area.keys()))
         nota_area = dict_area[p9_area_cultivo]
         
         p10_maquinas_implementos = st.selectbox("10 - Qual a disponibilidade de máquinas e implementos agrícolas na sua fazenda?", ["Insuficiente para as demandas", "Suficiente, mas defasada tecnologicamente", "Suficiente e atualizada mecanicamente", "Altamente tecnológica/conectada"])
         
-        # 11. Conectividade (Variável Core IPT - Peso 0.9)
+        # 11. Conectividade (Mapeada de 1 a 4 - Peso: 0.9)
         dict_conect = {
             "Isolado - sem conexão": 1,
             "Conectado - cobertura na gestão administrativa da fazenda (sede)": 2,
             "Operacional (cobertura em pontos estratégicos e galpões)": 3,
             "Inteligente - cobertura total (sede+galpões+talhões)": 4
         }
-        p11_conectividade = st.selectbox("11 - Qual tipo de conectividade em sua fazenda?", list(dict_conect.keys()))
+        p11_conectividade = st.selectbox("11 - Qual tipo de conectividade em sua fazenda? *", list(dict_conect.keys()))
         nota_conect = dict_conect[p11_conectividade]
         
         p12_assistencia_tecnica = st.selectbox("12 - Qual a sua atuação em relação à assistência técnica?", ["Não recebo assistência", "Recebo assistência pública (EMATER/Órgãos Estaduais)", "Recebo assistência de Cooperativas", "Contrato consultoria/assistência privada", "Recebo apoio técnico de canais integrados de indústrias"])
@@ -157,17 +156,14 @@ with aba_form:
         p14_infra_transporte = st.selectbox("14 - Qual a eficiência da infraestrutura de transporte e logística para as atividades agrícolas da sua fazenda?", ["Péssima/Ruim (Gargalo crítico)", "Regular (Afeta custos mas funciona)", "Boa/Excelente (Atende perfeitamente)"])
         p15_comercializacao = st.selectbox("15 - Você comercializa os produtos da sua fazenda?", ["Venda direta para o consumidor final", "Venda para intermediários/atravessadores", "Entrega total/parcial para cooperativas", "Venda direta para agroindústrias / Tradings", "Apenas consumo próprio/Subsistência"])
         
-        # Cooperativismo
         p16_cooperativa = st.radio("16 - Você está associado a alguma cooperativa agro?", ["Sim", "Não"])
         p17_nome_cooperativa = st.text_input("17 - Nome da Cooperativa ou Instituição vinculada (opcional):")
-        
         p18_apoio_privado = st.radio("18 - Sua fazenda recebe algum apoio privado de empresas líderes de mercado ou instituições (máquinas, capacitação, insumos...)?", ["Sim", "Não"])
         
         p19_list = ["Participação em dias de campo/feiras", "Consultorias externas", "Troca de experiências com vizinhos", "Testes em pequenas áreas antes de expandir", "Contratação de profissionais qualificados", "Não costumo realizar ações direcionadas à inovação"]
         p19_acoes_inovar = st.multiselect("19 - Quais ações você costuma utilizar para inovar na fazenda? (Selecione todas que se aplicam)", p19_list)
-        p19_string = ", ".join(p19_acoes_inovar)
         
-        # 20. Familiaridade Digital (Variável Core IPT - Peso 1.0)
+        # 20. Familiaridade Digital (Mapeada de 1 a 5 - Peso: 1.0)
         dict_fam = {
             "Nenhuma Experiência / Totalmente Inexperiente": 1,
             "Muito Baixa Experiência / Pouco Familiarizado": 2,
@@ -175,7 +171,7 @@ with aba_form:
             "Boa Experiência / Confiante e Habilidoso": 4,
             "Experiência Avançada / Especialista e Proativo": 5
         }
-        p20_familiaridade = st.selectbox("20 - Qual a sua familiaridade com o uso de tecnologias digitais?", list(dict_fam.keys()))
+        p20_familiaridade = st.selectbox("20 - Qual a sua familiaridade com o uso de tecnologias digitais? *", list(dict_fam.keys()))
         nota_fam = dict_fam[p20_familiaridade]
 
         st.divider()
@@ -185,38 +181,36 @@ with aba_form:
         
         p22_list = ["GPS Agrícola / Piloto Automático", "Drones de imageamento ou pulverização", "Sensores de solo ou clima (Estações)", "Softwares de gestão financeira/operacional", "Aplicativos de previsão do tempo ou pragas", "Telemetria de maquinários", "Plataformas de Marketplace / Compra de insumos online", "Não utilizo nenhuma tecnologia digital"]
         p22_quais_tecnologias = st.multiselect("22 - Se sim, quais tecnologias digitais utiliza em sua fazenda?", p22_list)
-        p22_string = ", ".join(p22_quais_tecnologias)
         
-        p23_tipo_aplicacao = st.text_area("23 - Se sim, para qual tipo de aplicação? OPCIONAL (Ex: Monitoramento de talhões, controle de fluxo de caixa, regulagem de maquinários):")
+        p23_tipo_aplicacao = st.text_area("23 - Se sim, para qual tipo de aplicação? OPCIONAL")
         
         p24_list = ["Alto custo financeiro de implantação", "Falta de cobertura/sinal de internet de qualidade", "Falta de treinamento ou mão de obra qualificada", "Dificuldade de integração entre sistemas/marcas", "Falta de assistência técnica especializada próxima", "Complexidade excessiva das ferramentas disponíveis"]
         p24_principais_barreiras = st.multiselect("24 - Quais as PRINCIPAIS barreiras para a adoção de tecnologias?", p24_list)
-        p24_string = ", ".join(p24_principais_barreiras)
         
         st.divider()
         st.markdown("### 👤 Dados de Contato e Encerramento")
         p25_email = st.text_input("25 - Qual seu email (para concorrer aos prêmios)? (opcional)")
         p26_nome = st.text_input("26 - Qual seu nome? (opcional)")
-        p27_perfil_fazenda = st.selectbox("27 - Qual seu perfil na fazenda?", ["Proprietário / Titular", "Gerente / Administrador", "Agrônomo / Técnico", "Familiar / Herdeiro", "Colaborador operacional"])
+        p27_perfil_fazenda = st.selectbox("27 - Qual seu perfil na fazenda?", ["Proprietário / Titular", "Gerente / Administrador", "Agrônomo / Técnico", "Familiar / Herdeiro", "Colaborador operational"])
         p28_proxima_tecnologia = st.text_input("28 - Qual a próxima tecnologia que gostaria de implantar na fazenda?")
         p29_sugestao_politica = st.text_area("29 - Sugestão para política pública ou comentários gerais:")
         
         submetido = st.form_submit_button("ENVIAR FORMULÁRIO E PROCESSAR ÍNDICE DE PRONTIDÃO")
 
 # ==============================================================================
-# 3. CORE MATEMÁTICO MANTIDO INTEGRALMENTE
+# 3. CORE MATEMÁTICO E TRATAMENTO DE STRINGS (RESOLUÇÃO DO NAMEERROR)
 # ==============================================================================
 if submetido:
     if not concordou:
         st.error("❌ Você precisa aceitar o Termo de Consentimento da Seção 1 para enviar suas respostas.")
     else:
-        # CORREÇÃO: Garante que as strings existam mesmo se o usuário deixar os campos em branco
+        # RESOLUÇÃO: Converte listas e textos opcionais preventivamente, evitando NameError
         p8_string = str(p8_demais_culturas) if p8_demais_culturas else ""
         p19_string = ", ".join(p19_acoes_inovar) if p19_acoes_inovar else ""
         p22_string = ", ".join(p22_quais_tecnologias) if p22_quais_tecnologias else ""
         p24_string = ", ".join(p24_principais_barreiras) if p24_principais_barreiras else ""
 
-        # Ponderação Logística Padrão
+        # Ponderação Logística Padrão (Questões 9, 20 e 11)
         ipt_bruto = (1.4 * nota_area) + (1.0 * nota_fam) + (0.9 * nota_conect)
         ipt_percentual = ((ipt_bruto - 3.3) / 12.3) * 100
         
@@ -248,7 +242,7 @@ if submetido:
         salvar_resposta(payload)
         
         with aba_form:
-            st.success("🎉 Formulário enviado e computado com sucesso! Obrigado por colaborar com a pesquisa e boa sorte no sorteio do Livro Agro 4.0.")
+            st.success("🎉 Formulário enviado e computado com sucesso! Obrigado por colaborar com a pesquisa e boa sorte no sorteio.")
             st.metric(label="Seu Índice de Prontidão Tecnológica (IPT)", value=f"{ipt_percentual:.1f} %")
             
             if cor_alerta == "error": st.error(f"**Posicionamento:** {cluster_final}")
