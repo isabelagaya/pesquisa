@@ -4,30 +4,53 @@ import pandas as pd
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Expandido)
+# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Carga Completa)
 # ==============================================================================
 DB_NAME = "pesquisa_rural.db"
 
 def inicializar_banco():
-    """Cria a tabela no banco de dados com as perguntas adicionais se não existir."""
+    """Cria a tabela no banco com todas as 29 variáveis do mapeamento oficial."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS respostas_survey (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-            nome_propriedade TEXT,
-            estado TEXT,
-            escolaridade TEXT,
-            atividade_principal TEXT,
-            area_cultivo TEXT,
-            area_cultivo_nota INTEGER,
-            conectividade TEXT,
-            conectividade_nota INTEGER,
-            familiaridade_digital TEXT,
-            familiaridade_nota INTEGER,
-            cultura_dados TEXT,
-            desafios_tecnologicos TEXT,
+            -- Seção 1: Perfil e Condicionantes
+            p1_idade TEXT,
+            p2_sexo TEXT,
+            p3_tamanho_familia TEXT,
+            p4_escolaridade TEXT,
+            p5_proxima_geracao TEXT,
+            p6_localizacao TEXT,
+            p7_cultura_principal TEXT,
+            p8_demais_culturas TEXT,
+            p9_area_cultivo TEXT,
+            p9_area_cultivo_nota INTEGER,
+            p10_maquinas_implementos TEXT,
+            p11_conectividade TEXT,
+            p11_conectividade_nota INTEGER,
+            p12_assistencia_tecnica TEXT,
+            p13_credito_rural TEXT,
+            p14_infra_transporte TEXT,
+            p15_comercializacao TEXT,
+            p16_cooperativa TEXT,
+            p17_nome_cooperativa TEXT,
+            p18_apoio_privado TEXT,
+            p19_acoes_inovar TEXT,
+            p20_familiaridade TEXT,
+            p20_familiaridade_nota INTEGER,
+            -- Seção 2: Tecnologias Digitais
+            p21_adota_tecnologias TEXT,
+            p22_quais_tecnologias TEXT,
+            p23_tipo_aplicacao TEXT,
+            p24_principais_barreiras TEXT,
+            p25_email TEXT,
+            p26_nome TEXT,
+            p27_perfil_fazenda TEXT,
+            p28_proxima_tecnologia TEXT,
+            p29_sugestao_politica TEXT,
+            -- Outputs do Modelo
             ipt_score REAL,
             cluster_classificacao TEXT
         )
@@ -36,215 +59,80 @@ def inicializar_banco():
     conn.close()
 
 def salvar_resposta(dados):
-    """Insere a linha completa de respostas capturadas no formulário."""
+    """Insere o payload completo contendo as 29 respostas + métricas do IPT."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
-    cursor.execute("""
+    query = """
         INSERT INTO respostas_survey (
-            nome_propriedade, estado, escolaridade, atividade_principal,
-            area_cultivo, area_cultivo_nota, conectividade, conectividade_nota, 
-            familiaridade_digital, familiaridade_nota, cultura_dados, desafios_tecnologicos,
+            p1_idade, p2_sexo, p3_tamanho_familia, p4_escolaridade, p5_proxima_geracao,
+            p6_localizacao, p7_cultura_principal, p8_demais_culturas, p9_area_cultivo, p9_area_cultivo_nota,
+            p10_maquinas_implementos, p11_conectividade, p11_conectividade_nota, p12_assistencia_tecnica,
+            p13_credito_rural, p14_infra_transporte, p15_comercializacao, p16_cooperativa, p17_nome_cooperativa,
+            p18_apoio_privado, p19_acoes_inovar, p20_familiaridade, p20_familiaridade_nota,
+            p21_adota_tecnologias, p22_quais_tecnologias, p23_tipo_aplicacao, p24_principais_barreiras,
+            p25_email, p26_nome, p27_perfil_fazenda, p28_proxima_tecnologia, p29_sugestao_politica,
             ipt_score, cluster_classificacao
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, dados)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """
+    cursor.execute(query, dados)
     conn.commit()
     conn.close()
 
-# Inicializa o banco de dados na primeira execução
 inicializar_banco()
 
 # ==============================================================================
-# 2. INTERFACE E DESIGN DA TELA DO SOFTWARE (Streamlit)
+# 2. INTERFACE E DESIGN (Streamlit)
 # ==============================================================================
 st.set_page_config(page_title="SDR 4.0 - Diagnóstico Rural", page_icon="🚜", layout="centered")
 
-st.title("🚜 Sistema de Diagnóstico de Prontidão Tecnológica Rural")
+st.title("🚜 Painel de Tecnologias Digitais Agrícola")
+
+# Texto institucional do cabeçalho
 st.markdown("""
-Este software avalia a maturidade e a capacidade de absorção tecnológica da sua propriedade rural baseado no **Índice de Prontidão Tecnológica (IPT)**, utilizando um modelo preditivo calibrado por regressão logística.
+**Prezado(a) Produtor(a) Rural,**
+
+Agradecemos imensamente a sua disponibilidade em participar desta importante pesquisa, que tem como objetivo compreender os fatores que influenciam a adoção de tecnologias digitais no campo, de forma a propor instrumentos que ajudem o produtor a adquirir novas ferramentas que ajudem em seu dia a dia, trazendo mais lucro e reduzindo custos, além de colaborar com o meio ambiente.
+
+Este questionário levará apenas alguns minutos para ser preenchido (8-10 min). Suas respostas serão tratadas com confidencialidade e anonimato, sendo utilizadas exclusivamente para fins de pesquisa e análise estatística. Não haverá identificação individual das suas informações. Recomendamos que baseiem suas respostas em evidências (dados) e não apenas em impressões.
+
+🎁 *Os participantes concorrerão a edições do Livro Agro 4.0, a serem sorteados ao final da pesquisa.*
 """)
 
-# Abas de navegação internas
-aba_form, aba_dados = st.tabs(["📋 Responder Diagnóstico", "📊 Visualizar Banco de Dados (Livre)"])
+# Abas de navegação
+aba_form, aba_dados = st.tabs(["📋 Responder Questionário", "📊 Painel de Dados Coletados"])
 
-# ------------------------------------------------------------------------------
-# ABA 1: FORMULÁRIO DE PESQUISA COMPLETO
-# ------------------------------------------------------------------------------
 with aba_form:
-    st.header("Formulário de Coleta e Avaliação")
-    
-    with st.form("form_pesquisa"):
-        # Seção A: Identificação e Perfil do Produtor
-        st.subheader("Seção A: Identificação e Perfil")
-        nome_prop = st.text_input("Nome da Propriedade / Produtor (Opcional)", placeholder="Ex: Fazenda Santa Maria")
-        estado_uf = st.text_input("Estado / UF", placeholder="Ex: SP")
+    with st.form("form_completo"):
         
-        escolaridade = st.selectbox(
-            "Escolaridade do Gestor / Produtor Principal:",
-            [
-                "Ensino Fundamental (Completo ou Incompleto)",
-                "Ensino Médio (Completo ou Incompleto)",
-                "Ensino Técnico",
-                "Ensino Superior / Graduação",
-                "Pós-Graduação (Especialização, Mestrado, Doutorado)"
-            ]
+        # Termo de consentimento obrigatório
+        st.info("⚠️ **Termo de Consentimento:** Ao responder este questionário, você concorda voluntariamente em participar da pesquisa e está ciente de que as respostas serão tratadas com confidencialidade e anonimato.")
+        concordou = st.checkbox("Li e concordo com os termos da pesquisa.", value=False)
+        
+        st.subheader("📋 SEÇÃO 1: Caracterização do Produtor e da Propriedade")
+        
+        p1_idade = st.selectbox("1 - Qual sua idade?", ["Até 25 anos", "26 a 35 anos", "36 a 45 anos", "46 a 55 anos", "56 a 65 anos", "Acima de 65 anos"])
+        p2_sexo = st.radio("2 - Qual seu sexo?", ["Masculino", "Feminino", "Prefiro não responder"])
+        p3_tamanho_familia = st.selectbox("3 - Qual o tamanho da sua família (pessoas que residem ou dependem da propriedade)?", ["1 a 2 pessoas", "3 a 4 pessoas", "5 a 6 pessoas", "Mais de 6 pessoas"])
+        
+        p4_escolaridade = st.selectbox(
+            "4 - Qual seu grau de escolaridade?",
+            ["Ensino Fundamental", "Ensino Médio", "Ensino Técnico", "Ensino Superior / Graduação", "Pós-Graduação (Especialização/Mestrado/Doutorado)"]
         )
         
-        atividade_principal = st.selectbox(
-            "Qual a principal atividade econômica da propriedade?",
-            [
-                "Agricultura (Grãos - Soja, Milho, etc.)",
-                "Pecuária de Corte",
-                "Pecuária de Leite",
-                "Hortifrúti / Olericultura",
-                "Vitivinicultura / Fruticultura",
-                "Multicultura / Mista"
-            ]
-        )
+        p5_proxima_geracao = st.radio("5 - Há membros da próxima geração (filhos/netos) envolvidos na gestão tecnológica da fazenda?", ["Sim", "Não", "Não se aplica / Não tenho herdeiros"])
+        p6_localizacao = st.text_input("6 - Localização da fazenda (Município / UF):", placeholder="Ex: Rio Verde / GO")
         
+        # Culturas
+        p7_cultura_principal = st.text_input("7 - Qual a principal cultura da sua fazenda?", placeholder="Ex: Soja, Café, Uva de Vinho, etc.")
+        p8_demais_culturas = st.text_input("8 - Demais culturas da sua fazenda (se houver, separe por vírgula):", placeholder="Ex: Milho, Sorgo, Caprino")
+
         st.divider()
+        st.markdown("### 🧮 Variáveis de Impacto no IPT")
         
-        # Seção B: Condicionantes de Prontidão (Variáveis do Core Matemático)
-        st.subheader("Seção B: Condicionantes de Prontidão (Cálculo do IPT)")
-        st.caption("As respostas desta seção determinam o seu Índice de Prontidão Tecnológica.")
-        
-        # 1. Variável Estrutural: Área de Cultivo (Mapeada de 1 a 5)
+        # 9. Área de Cultivo (Variável Core IPT - Peso 1.4)
         dict_area = {
             "Micro (até 50 ha)": 1,
             "Pequeno (51 a 200 ha)": 2,
             "Médio (201 a 1.000 ha)": 3,
             "Grande (1.001 a 5.000 ha)": 4,
-            "Muito grande (acima de 5.000 ha)": 5
-        }
-        escolha_area = st.selectbox("1. Qual área de cultivo da sua fazenda?", list(dict_area.keys()))
-        nota_area = dict_area[escolha_area]
-        
-        # 2. Variável Infraestrutural: Conectividade (Mapeada de 1 a 4)
-        dict_conect = {
-            "Isolado - sem conexão": 1,
-            "Conectado - cobertura na gestão administrativa da fazenda (sede)": 2,
-            "Operacional (cobertura em pontos estratégicos e galpões)": 3,
-            "Inteligente - cobertura total (sede+galpões+talhões)": 4
-        }
-        escolha_conect = st.selectbox("2. Qual tipo de conectividade em sua fazenda?", list(dict_conect.keys()))
-        nota_conect = dict_conect[escolha_conect]
-        
-        # 3. Variável Humana: Familiaridade Digital (Mapeada de 1 a 5)
-        dict_fam = {
-            "Nenhuma Experiência / Totalmente Inexperiente": 1,
-            "Muito Baixa Experiência / Pouco Familiarizado": 2,
-            "Experiência Moderada / Familiarizado com o Básico": 3,
-            "Boa Experiência / Confiante e Habilidoso": 4,
-            "Experiência Avançada / Especialista e Proativo": 5
-        }
-        escolha_fam = st.selectbox("3. Qual a sua familiaridade com o uso de tecnologias digitais?", list(dict_fam.keys()))
-        nota_fam = dict_fam[escolha_fam]
-        
-        st.divider()
-        
-        # Seção C: Contexto de Gestão e Desafios (Apenas Coleta)
-        st.subheader("Seção C: Cultura de Gestão e Desafios")
-        st.caption("Informações adicionais para mapeamento estratégico de gargalos locais.")
-        
-        cultura_dados = st.radio(
-            "Como a propriedade realiza o registro e análise de dados da produção atualmente?",
-            [
-                "Não realiza registros (Gestão visual / Caderno)",
-                "Registra em planilhas básicas (Excel) de forma manual",
-                "Utiliza softwares ou aplicativos dedicados de gestão rural",
-                "Utiliza sistemas integrados com sensores e automação de campo"
-            ]
-        )
-        
-        desafios_tecnologicos = st.selectbox(
-            "Qual o principal obstáculo para a adoção de novas tecnologias na sua visão?",
-            [
-                "Alto custo financeiro de implantação",
-                "Falta de cobertura/sinal de internet de qualidade",
-                "Falta de treinamento ou mão de obra qualificada",
-                "Dificuldade de integração entre os sistemas/maquinários",
-                "Falta de assistência técnica especializada próxima"
-            ]
-        )
-        
-        # Botão de envio
-        submetido = st.form_submit_button("PROCESSAR DIAGNÓSTICO DIGITAL")
-
-# ==============================================================================
-# 3. NÚCLEO MATEMÁTICO: CÁLCULO DO IPT E ENQUADRAMENTO NO CLUSTER
-# ==============================================================================
-if submetido:
-    # Fórmula ponderada original mantida estritamente intacta
-    ipt_bruto = (1.4 * nota_area) + (1.0 * nota_fam) + (0.9 * nota_conect)
-    
-    # Normalização Min-Max para escala de 0 a 100%
-    ipt_percentual = ((ipt_bruto - 3.3) / 12.3) * 100
-    
-    # Classificação por Linhas de Corte nos Clusters de Maturidade
-    if ipt_percentual < 40.0:
-        cluster_final = "Cluster 1: Prontidão Tecnológica Baixa (Exclusão)"
-        cor_alerta = "error"
-        txt_recomendacao = "🚨 **Ação Recomendada:** Sua propriedade enfrenta gargalos severos de infraestrutura básica ou familiaridade. Recomenda-se focar em programas de alfabetização digital básica e estender o sinal de internet de pontos fixos em direção às áreas operacionais da fazenda."
-    elif ipt_percentual < 70.0:
-        cluster_final = "Cluster 2: Prontidão Tecnológica Média (Transição)"
-        cor_alerta = "warning"
-        txt_recomendacao = "⚠️ **Ação Recomendada:** Sua propriedade está na vanguarda da transição! Você já possui conectividade operacional e boa familiaridade. O próximo passo é buscar soluções integradas (Crédito Coletivo 4.0) e investir em redes de sensores de campo (Última Milha Rural) para cobrir a área de cultivo de forma contínua."
-    else:
-        cluster_final = "Cluster 3: Prontidão Tecnológica Alta (Fronteira)"
-        cor_alerta = "success"
-        txt_recomendacao = "✅ **Ação Recomendada:** Excelente! Sua fazenda encontra-se na Fronteira Tecnológica 4.0. O foco deve estar em automação profunda de processos, inteligência de dados em tempo real e compartilhamento de melhores práticas com a cadeia produtiva local."
-
-    # Salva todos os dados coletados (incluindo as novas colunas)
-    payload = (
-        nome_prop if nome_prop else "Não identificado",
-        estado_uf if estado_uf else "Não especificado",
-        escolaridade,
-        atividade_principal,
-        escolha_area, nota_area,
-        escolha_conect, nota_conect,
-        escolha_fam, nota_fam,
-        cultura_dados,
-        desafios_tecnologicos,
-        round(ipt_percentual, 1),
-        cluster_final
-    )
-    salvar_resposta(payload)
-    
-    # Exibição dos relatórios na tela de forma amigável
-    with aba_form:
-        st.success("Diagnóstico concluído e armazenado com sucesso na base de dados!")
-        
-        # Card de resultado do Índice
-        st.metric(label="Seu Índice de Prontidão Tecnológica (IPT)", value=f"{ipt_percentual:.1f} %")
-        
-        # Card de enquadramento do Cluster
-        if cor_alerta == "error": st.error(f"**Posicionamento:** {cluster_final}")
-        elif cor_alerta == "warning": st.warning(f"**Posicionamento:** {cluster_final}")
-        else: st.success(f"**Posicionamento:** {cluster_final}")
-        
-        st.info(txt_recomendacao)
-
-# ------------------------------------------------------------------------------
-# ABA 2: VISUALIZAÇÃO DA BASE DE DADOS EXPANDIDA
-# ------------------------------------------------------------------------------
-with aba_dados:
-    st.header("Painel da Base de Dados Livre (SQLite)")
-    st.write("Abaixo estão listadas todas as entradas capturadas pelo software em tempo real:")
-    
-    # Consulta os dados salvos para exibir em formato de tabela (Pandas Dataframe)
-    conn = sqlite3.connect(DB_NAME)
-    try:
-        df_dados = pd.read_sql_query("SELECT * FROM respostas_survey ORDER BY timestamp DESC", conn)
-        st.dataframe(df_dados)
-        
-        # Botão para baixar a planilha limpa para auditoria ou uso no Excel
-        csv = df_dados.to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Baixar Dados Coletados (.CSV)",
-            data=csv,
-            file_name="dados_coletados_ipt.csv",
-            mime="text/csv",
-        )
-    except Exception as e:
-        st.write("Nenhum registro encontrado ou erro na tabela.")
-    finally:
-        conn.close()
+            "Muito grande (acima de 5
