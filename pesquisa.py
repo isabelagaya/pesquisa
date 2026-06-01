@@ -210,6 +210,12 @@ if submetido:
     if not concordou:
         st.error("❌ Você precisa aceitar o Termo de Consentimento da Seção 1 para enviar suas respostas.")
     else:
+        # CORREÇÃO: Garante que as strings existam mesmo se o usuário deixar os campos em branco
+        p8_string = str(p8_demais_culturas) if p8_demais_culturas else ""
+        p19_string = ", ".join(p19_acoes_inovar) if p19_acoes_inovar else ""
+        p22_string = ", ".join(p22_quais_tecnologias) if p22_quais_tecnologias else ""
+        p24_string = ", ".join(p24_principais_barreiras) if p24_principais_barreiras else ""
+
         # Ponderação Logística Padrão
         ipt_bruto = (1.4 * nota_area) + (1.0 * nota_fam) + (0.9 * nota_conect)
         ipt_percentual = ((ipt_bruto - 3.3) / 12.3) * 100
