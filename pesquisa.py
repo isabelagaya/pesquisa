@@ -4,12 +4,12 @@ import pandas as pd
 import os
 
 # ==============================================================================
-# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Livre)
+# 1. CONFIGURAÇÃO E CRIAÇÃO DO BANCO DE DADOS (SQLite - Expandido)
 # ==============================================================================
 DB_NAME = "pesquisa_rural.db"
 
 def inicializar_banco():
-    """Cria a tabela no banco de dados se ela ainda não existir."""
+    """Cria a tabela no banco de dados com as perguntas adicionais se não existir."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
@@ -18,12 +18,16 @@ def inicializar_banco():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             nome_propriedade TEXT,
             estado TEXT,
+            escolaridade TEXT,
+            atividade_principal TEXT,
             area_cultivo TEXT,
             area_cultivo_nota INTEGER,
             conectividade TEXT,
             conectividade_nota INTEGER,
             familiaridade_digital TEXT,
             familiaridade_nota INTEGER,
+            cultura_dados TEXT,
+            desafios_tecnologicos TEXT,
             ipt_score REAL,
             cluster_classificacao TEXT
         )
@@ -32,15 +36,16 @@ def inicializar_banco():
     conn.close()
 
 def salvar_resposta(dados):
-    """Insere uma nova linha de resposta capturada no formulário web."""
+    """Insere a linha completa de respostas capturadas no formulário."""
     conn = sqlite3.connect(DB_NAME)
     cursor = conn.cursor()
     cursor.execute("""
         INSERT INTO respostas_survey (
-            nome_propriedade, estado, area_cultivo, area_cultivo_nota,
-            conectividade, conectividade_nota, familiaridade_digital, familiaridade_nota,
+            nome_propriedade, estado, escolaridade, atividade_principal,
+            area_cultivo, area_cultivo_nota, conectividade, conectividade_nota, 
+            familiaridade_digital, familiaridade_nota, cultura_dados, desafios_tecnologicos,
             ipt_score, cluster_classificacao
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, dados)
     conn.commit()
     conn.close()
@@ -62,18 +67,45 @@ Este software avalia a maturidade e a capacidade de absorção tecnológica da s
 aba_form, aba_dados = st.tabs(["📋 Responder Diagnóstico", "📊 Visualizar Banco de Dados (Livre)"])
 
 # ------------------------------------------------------------------------------
-# ABA 1: FORMULÁRIO DE PESQUISA (MAPEADO CONFORME O GOOGLE FORMS E A MODELAGEM)
+# ABA 1: FORMULÁRIO DE PESQUISA COMPLETO
 # ------------------------------------------------------------------------------
 with aba_form:
     st.header("Formulário de Coleta e Avaliação")
     
     with st.form("form_pesquisa"):
-        st.subheader("Seção A: Identificação Básica")
+        # Seção A: Identificação e Perfil do Produtor
+        st.subheader("Seção A: Identificação e Perfil")
         nome_prop = st.text_input("Nome da Propriedade / Produtor (Opcional)", placeholder="Ex: Fazenda Santa Maria")
         estado_uf = st.text_input("Estado / UF", placeholder="Ex: SP")
         
+        escolaridade = st.selectbox(
+            "Escolaridade do Gestor / Produtor Principal:",
+            [
+                "Ensino Fundamental (Completo ou Incompleto)",
+                "Ensino Médio (Completo ou Incompleto)",
+                "Ensino Técnico",
+                "Ensino Superior / Graduação",
+                "Pós-Graduação (Especialização, Mestrado, Doutorado)"
+            ]
+        )
+        
+        atividade_principal = st.selectbox(
+            "Qual a principal atividade econômica da propriedade?",
+            [
+                "Agricultura (Grãos - Soja, Milho, etc.)",
+                "Pecuária de Corte",
+                "Pecuária de Leite",
+                "Hortifrúti / Olericultura",
+                "Vitivinicultura / Fruticultura",
+                "Multicultura / Mista"
+            ]
+        )
+        
         st.divider()
-        st.subheader("Seção B: Condicionantes de Prontidão")
+        
+        # Seção B: Condicionantes de Prontidão (Variáveis do Core Matemático)
+        st.subheader("Seção B: Condicionantes de Prontidão (Cálculo do IPT)")
+        st.caption("As respostas desta seção determinam o seu Índice de Prontidão Tecnológica.")
         
         # 1. Variável Estrutural: Área de Cultivo (Mapeada de 1 a 5)
         dict_area = {
@@ -107,6 +139,33 @@ with aba_form:
         escolha_fam = st.selectbox("3. Qual a sua familiaridade com o uso de tecnologias digitais?", list(dict_fam.keys()))
         nota_fam = dict_fam[escolha_fam]
         
+        st.divider()
+        
+        # Seção C: Contexto de Gestão e Desafios (Apenas Coleta)
+        st.subheader("Seção C: Cultura de Gestão e Desafios")
+        st.caption("Informações adicionais para mapeamento estratégico de gargalos locais.")
+        
+        cultura_dados = st.radio(
+            "Como a propriedade realiza o registro e análise de dados da produção atualmente?",
+            [
+                "Não realiza registros (Gestão visual / Caderno)",
+                "Registra em planilhas básicas (Excel) de forma manual",
+                "Utiliza softwares ou aplicativos dedicados de gestão rural",
+                "Utiliza sistemas integrados com sensores e automação de campo"
+            ]
+        )
+        
+        desafios_tecnologicos = st.selectbox(
+            "Qual o principal obstáculo para a adoção de novas tecnologias na sua visão?",
+            [
+                "Alto custo financeiro de implantação",
+                "Falta de cobertura/sinal de internet de qualidade",
+                "Falta de treinamento ou mão de obra qualificada",
+                "Dificuldade de integração entre os sistemas/maquinários",
+                "Falta de assistência técnica especializada próxima"
+            ]
+        )
+        
         # Botão de envio
         submetido = st.form_submit_button("PROCESSAR DIAGNÓSTICO DIGITAL")
 
@@ -114,12 +173,10 @@ with aba_form:
 # 3. NÚCLEO MATEMÁTICO: CÁLCULO DO IPT E ENQUADRAMENTO NO CLUSTER
 # ==============================================================================
 if submetido:
-    # Fórmula ponderada com pesos exatos da Regressão Logística
-    # IPT_Bruto = 1.4*Area + 1.0*Fam + 0.9*Cone
+    # Fórmula ponderada original mantida estritamente intacta
     ipt_bruto = (1.4 * nota_area) + (1.0 * nota_fam) + (0.9 * nota_conect)
     
     # Normalização Min-Max para escala de 0 a 100%
-    # Mínimo possível (tudo 1) = 3.3 | Máximo possível (5,5,4) = 15.6 | Intervalo = 12.3
     ipt_percentual = ((ipt_bruto - 3.3) / 12.3) * 100
     
     # Classificação por Linhas de Corte nos Clusters de Maturidade
@@ -136,19 +193,23 @@ if submetido:
         cor_alerta = "success"
         txt_recomendacao = "✅ **Ação Recomendada:** Excelente! Sua fazenda encontra-se na Fronteira Tecnológica 4.0. O foco deve estar em automação profunda de processos, inteligência de dados em tempo real e compartilhamento de melhores práticas com a cadeia produtiva local."
 
-    # Salva os dados processados no SQLite automaticamente
+    # Salva todos os dados coletados (incluindo as novas colunas)
     payload = (
         nome_prop if nome_prop else "Não identificado",
         estado_uf if estado_uf else "Não especificado",
+        escolaridade,
+        atividade_principal,
         escolha_area, nota_area,
         escolha_conect, nota_conect,
         escolha_fam, nota_fam,
+        cultura_dados,
+        desafios_tecnologicos,
         round(ipt_percentual, 1),
         cluster_final
     )
     salvar_resposta(payload)
     
-    # Exibição dos relatórios de forma elegante na tela
+    # Exibição dos relatórios na tela de forma amigável
     with aba_form:
         st.success("Diagnóstico concluído e armazenado com sucesso na base de dados!")
         
@@ -163,7 +224,7 @@ if submetido:
         st.info(txt_recomendacao)
 
 # ------------------------------------------------------------------------------
-# ABA 2: VISUALIZAÇÃO DA BASE DE DADOS (PERMITE DOWNLOAD DOS DADOS COLETADOS)
+# ABA 2: VISUALIZAÇÃO DA BASE DE DADOS EXPANDIDA
 # ------------------------------------------------------------------------------
 with aba_dados:
     st.header("Painel da Base de Dados Livre (SQLite)")
@@ -175,7 +236,7 @@ with aba_dados:
         df_dados = pd.read_sql_query("SELECT * FROM respostas_survey ORDER BY timestamp DESC", conn)
         st.dataframe(df_dados)
         
-        # Botão para baixar a planilha limpa para auditoria ou uso no Excel/SPSS
+        # Botão para baixar a planilha limpa para auditoria ou uso no Excel
         csv = df_dados.to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Baixar Dados Coletados (.CSV)",
